@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Just Merch - Vendor Report Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  min-height: 100vh; font-family: 'DM Sans', 'Helvetica Neue', sans-serif;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+  color: #e0e0e0; padding: 40px 20px;
+}
+.container { max-width: 800px; margin: 0 auto; }
+.badge {
+  display: inline-block; padding: 6px 16px; border-radius: 100px;
+  background: rgba(0,176,80,0.15); border: 1px solid rgba(0,176,80,0.3);
+  font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  color: #00B050; margin-bottom: 16px;
+}
+h1 {
+  font-size: 36px; font-weight: 700; margin: 8px 0;
+  background: linear-gradient(135deg, #ffffff 0%, #a0a0a0 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.subtitle { color: #888; font-size: 15px; margin-bottom: 8px; }
+.header { margin-bottom: 48px; text-align: center; }
+.dropzone {
+  border: 2px dashed #333; border-radius: 16px; padding: 60px 40px;
+  text-align: center; cursor: pointer; transition: all 0.2s;
+  background: rgba(255,255,255,0.02);
+}
+.dropzone:hover, .dropzone.dragover {
+  border-color: #00B050; background: rgba(0,176,80,0.05);
+}
+.dropzone .icon { font-size: 48px; margin-bottom: 16px; }
+.dropzone p { font-size: 16px; font-weight: 500; color: #ccc; margin: 0 0 8px; }
+.dropzone .hint { font-size: 13px; color: #666; }
+.btn-main {
+  width: 100%; padding: 16px 24px; border-radius: 12px;
+  background: linear-gradient(135deg, #00B050, #008040); border: none;
+  color: white; font-size: 16px; font-weight: 600; cursor: pointer;
+  margin-bottom: 32px; transition: transform 0.15s; font-family: inherit;
+}
+.btn-main:hover { transform: scale(1.02); }
+.master-card {
+  background: rgba(255,255,255,0.04); border-radius: 12px;
+  border: 1px solid #222; padding: 16px 20px; margin-bottom: 24px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.master-card .title { font-size: 14px; font-weight: 600; color: #fff; }
+.master-card .sub { font-size: 12px; color: #666; margin-top: 4px; }
+.btn-sm {
+  padding: 8px 16px; border-radius: 8px; background: rgba(255,255,255,0.08);
+  border: 1px solid #333; color: #ccc; font-size: 13px; cursor: pointer;
+  font-family: inherit; transition: background 0.15s;
+}
+.btn-sm:hover { background: rgba(255,255,255,0.14); }
+.section-label {
+  font-size: 13px; font-weight: 600; color: #888; text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 12px;
+}
+.vendor-row {
+  background: rgba(255,255,255,0.03); border-radius: 10px;
+  border: 1px solid #1a1a1a; padding: 14px 18px;
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.vendor-row .name { font-size: 14px; font-weight: 500; color: #ddd; }
+.vendor-row .meta {
+  font-size: 12px; color: #666; margin-top: 3px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.vendor-row .btn-sm { font-size: 12px; padding: 7px 14px; flex-shrink: 0; }
+.btn-reset {
+  width: 100%; padding: 12px; border-radius: 10px; margin-top: 24px;
+  background: transparent; border: 1px solid #333; color: #666;
+  font-size: 13px; cursor: pointer; font-family: inherit;
+}
+.btn-reset:hover { border-color: #555; color: #999; }
+.processing { color: #00B050; font-size: 16px; font-weight: 500; }
+.error { color: #ff4444; font-size: 16px; }
+#results { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="badge">Just Merch</div>
+    <h1>Vendor Report Generator</h1>
+    <p class="subtitle">Upload the Export.io CSV to generate all vendor reports</p>
+  </div>
+
+  <div id="uploadArea">
+    <div class="dropzone" id="dropzone">
+      <div class="icon">📄</div>
+      <p id="dropText">Drop CSV here or click to upload</p>
+      <div class="hint" id="dropHint">Accepts Export.io sales CSV files</div>
+    </div>
+    <input type="file" id="fileInput" accept=".csv" style="display:none">
+  </div>
+
+  <div id="results">
+    <button class="btn-main" id="downloadAll">⬇ Download All Reports</button>
+
+    <div class="master-card">
+      <div>
+        <div class="title">📊 Master Summary</div>
+        <div class="sub">Internal — all vendors combined</div>
+      </div>
+      <button class="btn-sm" id="downloadMaster">Download</button>
+    </div>
+
+    <div class="section-label" id="vendorCount"></div>
+    <div id="vendorList"></div>
+
+    <button class="btn-reset" id="resetBtn">↺ Process Another CSV</button>
+  </div>
+</div>
+
+<script>
+const DEDUCTION_ROWS = ["Shipstation Overages","Manual Shipping Costs","Customer Shipping Adjustments","Merchandise Printing Invoice Balance","Other Deductions"];
+let allWorkbooks = {};
+let masterWorkbook = null;
+let vendorData = [];
+
+function parseCSV(text) {
+  const lines = text.split("\n").filter(l => l.trim());
+  const headers = lines[0].split(",").map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const vals = []; let current = ""; let inQ = false;
+    for (const ch of line) {
+      if (ch === '"') inQ = !inQ;
+      else if (ch === "," && !inQ) { vals.push(current.trim()); current = ""; }
+      else current += ch;
+    }
+    vals.push(current.trim());
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = vals[i] || "");
+    return obj;
+  });
+}
+
+function parseMoney(val) {
+  if (!val) return 0;
+  return parseFloat(String(val).replace(/[\$,]/g, "")) || 0;
+}
+
+function buildVendorReport(vendor, rows) {
+  const data = [];
+  data.push([vendor.toUpperCase() + " - SALES REPORT"]);
+  const dates = rows.map(r => r.Date).filter(Boolean);
+  let period = "";
+  if (dates.length > 0) {
+    try {
+      const d = new Date(dates[0].replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$1-$2"));
+      period = "Period: " + d.toLocaleString("en-US", { month: "long", year: "numeric" });
+    } catch(e) {}
+  }
+  data.push([period]);
+  data.push([]);
+
+  // ── DEDUCTIONS SECTION (top) ──
+  data.push(["DEDUCTIONS & ADJUSTMENTS"]);
+  data.push(["Description","","Amount"]);
+  const dedStart = data.length + 1;
+  DEDUCTION_ROWS.forEach(label => data.push([label, "", 0]));
+  const dedEnd = dedStart + DEDUCTION_ROWS.length - 1;
+  data.push(["Total Deductions","",{t:"n",f:"SUM(C"+dedStart+":C"+dedEnd+")"}]);
+  const totalDedRow = data.length;
+  data.push([]);
+
+  // Calculate where the transaction totals row will land
+  // After this: push FINAL PAYOUT (row +1), blank (row +2), header (row +3), then data starts at +4
+  const txStartRow = data.length + 4;
+  const txEndRow = txStartRow + rows.length - 1;
+  const txTotalsRow = txEndRow + 2;
+
+  // FINAL VENDOR PAYOUT (references transaction totals below)
+  data.push(["FINAL VENDOR PAYOUT","",{t:"n",f:"H"+txTotalsRow+"-C"+totalDedRow}]);
+  data.push([]);
+
+  // ── TRANSACTION DETAILS (below) ──
+  data.push(["Order #","Date","Product","Gross Sales","Discounts","Returns","NET SALES","Vendor Payout"]);
+
+  const startRow = data.length + 1;
+  rows.forEach(r => {
+    data.push([
+      r["Order Number"]||"", r["Date"]||"", r["Product Title"]||"",
+      parseMoney(r["Gross Sales"]), parseMoney(r["Discounts"]), parseMoney(r["Returns"]),
+      parseMoney(r["NET SALES"]), parseMoney(r["Vendor Payout"]),
+    ]);
+  });
+
+  const endRow = startRow + rows.length - 1;
+  data.push([]);
+  const totalsRow = data.length + 1;
+  data.push(["","","TOTALS",
+    {t:"n",f:"SUM(D"+startRow+":D"+endRow+")"},
+    {t:"n",f:"SUM(E"+startRow+":E"+endRow+")"},
+    {t:"n",f:"SUM(F"+startRow+":F"+endRow+")"},
+    {t:"n",f:"SUM(G"+startRow+":G"+endRow+")"},
+    {t:"n",f:"SUM(H"+startRow+":H"+endRow+")"},
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws["!cols"] = [{wch:18},{wch:18},{wch:30},{wch:13},{wch:13},{wch:13},{wch:13},{wch:15}];
+
+  // Currency formatting
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+  for (let R = 0; R <= range.e.r; R++) {
+    for (let C = 3; C <= 7; C++) {
+      const addr = XLSX.utils.encode_cell({r:R,c:C});
+      if (ws[addr] && (typeof ws[addr].v === "number" || ws[addr].f)) ws[addr].z = '$#,##0.00';
+    }
+    const cAddr = XLSX.utils.encode_cell({r:R,c:2});
+    if (ws[cAddr] && (typeof ws[cAddr].v === "number" || ws[cAddr].f) && R >= dedStart-2) ws[cAddr].z = '$#,##0.00';
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Sales Report");
+  return wb;
+}
+
+function buildMasterSummary(totals) {
+  const data = [];
+  data.push(["JUST MERCH VENDOR PAYOUTS"]);
+  data.push([]);
+  data.push(["VENDOR","","VENDOR PAYOUT","","JUST MERCH","COMMISSIONS CALCULATED","Shipstation Overages","MANUAL SHIPPING TOTALS CALCULATED","CUSTOMER SHIPPING COSTS REVIEWED","REPORTS SENT"]);
+  const startRow = 4;
+  totals.forEach(t => data.push([t.vendor, "$", t.payout, "$", t.commission, "","","","",""]));
+  const endRow = startRow + totals.length - 1;
+  data.push([]);
+  data.push(["","Total Vendor Payout",{t:"n",f:"SUM(C"+startRow+":C"+endRow+")"},"JM Store Commissions",{t:"n",f:"SUM(E"+startRow+":E"+endRow+")"}]);
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws["!cols"] = [{wch:22},{wch:5},{wch:14},{wch:5},{wch:14},{wch:16},{wch:14},{wch:16},{wch:16},{wch:12}];
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+  for (let R = startRow-1; R <= range.e.r; R++) {
+    for (const C of [2,4]) {
+      const addr = XLSX.utils.encode_cell({r:R,c:C});
+      if (ws[addr] && (typeof ws[addr].v === "number" || ws[addr].f)) ws[addr].z = '#,##0.00';
+    }
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Vendor Payouts");
+  return wb;
+}
+
+function downloadWb(wb, name) {
+  const buf = XLSX.write(wb, {bookType:"xlsx", type:"array"});
+  const blob = new Blob([buf], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function processFile(file) {
+  document.getElementById("dropText").className = "processing";
+  document.getElementById("dropText").textContent = "Processing " + file.name + "...";
+  document.getElementById("dropHint").style.display = "none";
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const rows = parseCSV(e.target.result);
+      const filtered = rows.filter(r => r["Product Vendor"] && r["Product Vendor"].trim() && r["Product Vendor"] !== "Grand Total");
+      const grouped = {};
+      filtered.forEach(r => {
+        const v = r["Product Vendor"].trim();
+        if (!grouped[v]) grouped[v] = [];
+        grouped[v].push(r);
+      });
+      const sorted = Object.keys(grouped).sort((a,b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+      allWorkbooks = {};
+      vendorData = [];
+      sorted.forEach(v => {
+        allWorkbooks[v] = buildVendorReport(v, grouped[v]);
+        vendorData.push({
+          vendor: v,
+          payout: grouped[v].reduce((s,r) => s + parseMoney(r["Vendor Payout"]), 0),
+          commission: grouped[v].reduce((s,r) => s + parseMoney(r["Commission"]), 0),
+          orderCount: grouped[v].length,
+        });
+      });
+      masterWorkbook = buildMasterSummary(vendorData);
+      showResults();
+    } catch(err) {
+      console.error(err);
+      document.getElementById("dropText").className = "error";
+      document.getElementById("dropText").textContent = "Error processing file. Check CSV format and try again.";
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showResults() {
+  document.getElementById("uploadArea").style.display = "none";
+  document.getElementById("results").style.display = "block";
+  document.getElementById("downloadAll").textContent = "⬇ Download All Reports (" + (vendorData.length + 1) + " files)";
+  document.getElementById("vendorCount").textContent = "Client Reports (" + vendorData.length + ")";
+
+  const list = document.getElementById("vendorList");
+  list.innerHTML = "";
+  vendorData.forEach(v => {
+    const row = document.createElement("div");
+    row.className = "vendor-row";
+    row.innerHTML = '<div style="flex:1"><div class="name">' + v.vendor + '</div>' +
+      '<div class="meta">' + v.orderCount + ' orders · Payout: $' + v.payout.toFixed(2) + ' · Commission: $' + v.commission.toFixed(2) + '</div></div>' +
+      '<button class="btn-sm" data-vendor="' + v.vendor.replace(/"/g,'&quot;') + '">Download</button>';
+    row.querySelector("button").addEventListener("click", function() {
+      const name = this.getAttribute("data-vendor");
+      downloadWb(allWorkbooks[name], name.replace(/[/\\:]/g,"_") + "_Sales_Report.xlsx");
+    });
+    list.appendChild(row);
+  });
+}
+
+// Event listeners
+const dropzone = document.getElementById("dropzone");
+const fileInput = document.getElementById("fileInput");
+
+dropzone.addEventListener("click", () => fileInput.click());
+dropzone.addEventListener("dragover", e => { e.preventDefault(); dropzone.classList.add("dragover"); });
+dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+dropzone.addEventListener("drop", e => {
+  e.preventDefault(); dropzone.classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith(".csv")) processFile(file);
+});
+fileInput.addEventListener("change", e => { if (e.target.files[0]) processFile(e.target.files[0]); });
+
+document.getElementById("downloadAll").addEventListener("click", () => {
+  downloadWb(masterWorkbook, "JM_Master_Summary.xlsx");
+  setTimeout(() => {
+    Object.entries(allWorkbooks).forEach(([v, wb], i) => {
+      setTimeout(() => downloadWb(wb, v.replace(/[/\\:]/g,"_") + "_Sales_Report.xlsx"), i * 300);
+    });
+  }, 500);
+});
+
+document.getElementById("downloadMaster").addEventListener("click", () => {
+  downloadWb(masterWorkbook, "JM_Master_Summary.xlsx");
+});
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+  document.getElementById("uploadArea").style.display = "block";
+  document.getElementById("results").style.display = "none";
+  document.getElementById("dropText").className = "";
+  document.getElementById("dropText").textContent = "Drop CSV here or click to upload";
+  document.getElementById("dropHint").style.display = "block";
+  fileInput.value = "";
+});
+</script>
+</body>
+</html>
